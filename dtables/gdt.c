@@ -1,13 +1,13 @@
 #include <stdint.h>
 struct __attribute__((__packed__)) GDTseg {
-  uint32_t base;
+  uint16_t base;
   uint32_t limit;
   uint8_t access_byte;
   uint8_t flags;
 };
 struct __attribute__((__packed__)) GDTbounds {
-  uint32_t base;
   uint16_t limit;
+  uint32_t base;
 };
 static struct GDTseg segments[5];
 static struct GDTbounds bounds;

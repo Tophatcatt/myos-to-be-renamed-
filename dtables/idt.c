@@ -20,42 +20,30 @@ idt_entry_t idt[32];
 ////
 ///
 ///
-struct __attribute__((packed)) cpu_status_t {
-  uint32_t edi;
-  uint32_t esi;
-  uint32_t edx;
-  uint32_t ecx;
-  // other pushed registers
-  uint32_t ebx;
-  uint32_t eax;
-
-  uint32_t vector_number;
-  uint32_t error_code;
-
-  uint32_t iret_eip;
-  uint32_t iret_cs;
-  uint32_t iret_flags;
-  uint32_t iret_esp;
-  uint32_t iret_ss;
-};
 //__attribute__((noreturn)) void interrupt_handler(void); //might need idk
-void interrupt_handler(struct cpu_status_t *context) {
-  terminal_errorstring("interrupt triggered");
-  uint32_t vec_num = context->vector_number;
-  terminal_errorstring("exception vector tripped");
-  return;
-  switch (vec_num) {
+uint32_t getecx() {
+  uint32_t val;
+  asm volatile("movl %%ecx, %0" : "=r"(val));
+  return val;
+}
+void interrupt_handler(uint32_t vecnum) {
+  // terminal_errorstring("interrupt triggered\n");
+  // terminal_errorstring("exception vector tripped\n");
+  // uint32_t vecnum = getecx();
+  switch (vecnum) {
   case 0:
-    terminal_errorstring("divided by zero error");
+    terminal_writeint(vecnum);
+    terminal_errorstring("divided by zero error\n");
     break;
   case 13:
-    terminal_errorstring("general protection fault.");
+    terminal_errorstring("general protection fault.\n");
     break;
   case 14:
-    terminal_errorstring("page fault.");
+    terminal_errorstring("page fault.\n");
     break;
   default:
-    terminal_errorstring("unexpected interrupt.");
+    terminal_errorstring("unexpected interrupt.\n");
+    terminal_writeint(vecnum);
     break;
   }
   return;
@@ -85,18 +73,18 @@ void idt_set_descriptor(uint8_t vector, void *handler, uint8_t flags) {
 }
 static uint16_t IDT_MAX_DESCRIPTORS = 32;
 
-extern void *vector_0_handler;
+// extern void *vector_0_handler;
 static bool vectors[32];
 
-// extern void *isr_stub_table[];
+extern void *isr_stub_table[];
 void idt_init(void);
 void idt_init() {
   idtr_t idtr;
   idtr.base = (uintptr_t)&idt[0];
   idtr.limit = (uint16_t)sizeof(idt_entry_t) * IDT_MAX_DESCRIPTORS - 1;
   for (uint8_t vector = 0; vector < 32; vector++) {
-    void *handler = vector_0_handler + (vector * 16);
-    // void *handler = isr_stub_table[vector];
+    // void *handler = vector_0_handler + (vector * 16);
+    void *handler = isr_stub_table[vector];
     idt_set_descriptor(vector, handler, 0x8);
     vectors[vector] = true;
   }

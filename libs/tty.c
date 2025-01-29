@@ -107,32 +107,31 @@ void terminal_write(const char *data, size_t size) {
     terminal_putchar(data[i]);
 }
 
+void newline() { terminal_putchar(10); }
 void terminal_writestring(const char *data) {
   terminal_write(data, strlen(data));
-}
-void popwrite() {
-  char digit = (char)(stackpop() & 0x000000ff);
-  if (digit > 9 && digit != 11)
-    return popwrite();
-  if (digit == 11)
-    return;
-  terminal_putchar(digit + 0x30);
-  popwrite();
+  newline();
 }
 void terminal_writeint(uint32_t num) {
   if (num == 0) {
     terminal_putchar(0x30);
+    newline();
     return;
   }
-
-  char digit;
-  stackpush(11);
-  while (num != 0) {
-    digit = num % 10;
-    num = num / 10;
-    stackpush(digit);
+  uint32_t len = 0;
+  uint32_t clone = num;
+  while (clone > 0) {
+    clone /= 10;
+    len += 1;
   }
-  popwrite();
+  char numstr[len];
+  len -= 1;
+  while (num > 0) {
+    numstr[len] = (num % 10) + 0x30;
+    num /= 10;
+    len -= 1;
+  }
+  terminal_writestring(numstr);
 }
 void terminal_specialstring(const char *msg, enum vga_color_combos msgtype) {
   terminal_setcolor(msgtype);
@@ -167,4 +166,3 @@ void terminal_uproot() { // scroll the terminal buffer upwards. deletes what is
 // }
 uint16_t get_cursor_xcoord() { return terminal_column; }
 uint16_t get_cursor_ycoord() { return terminal_row; }
-void newline() { terminal_putchar(10); }

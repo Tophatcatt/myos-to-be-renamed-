@@ -2,7 +2,7 @@
 CFLAGS?=-O2 -g
 # Add mandatory options to CFLAGS:
 CFLAGS:=$(CFLAGS) -Wall -Wextra
-buildos:
+failbuild:
 	export PATH="~/Documents/workspace/cross/bin/"
 	i686-elf-as booter/boot.s -o booter/boot.o
 	i686-elf-gcc -c kernel/main.c -o kernel/kernel.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra
@@ -10,11 +10,11 @@ buildos:
 	cp myos/myos.bin myos/isodir/boot/myos.bin
 	grub-mkrescue -o myos/myos.iso myos/isodir
 
-buildos_isr:
+buildos:
 	export PATH="~/Documents/workspace/cross/bin/"
 	i686-elf-as booter/boot.s -o booter/boot.o
 	i686-elf-gcc -c kernel/main.c -o kernel/kernel.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra
-	i686-elf-gcc -T linker/linker.ld -o myos/myos.bin -ffreestanding -O2 -nostdlib booter/boot.o  kernel/kernel.o dtables/gdtreloader.o dtables/isr.o -lgcc
+	i686-elf-gcc -T linker/linker.ld -o myos/myos.bin -ffreestanding -O2 -nostdlib booter/boot.o booter/protected.o kernel/kernel.o dtables/isr.o -lgcc
 	cp myos/myos.bin myos/isodir/boot/myos.bin
 	grub-mkrescue -o myos/myos.iso myos/isodir
 

@@ -1,4 +1,4 @@
-#include "../dtables/gdt.c"
+#include "../dtables/gdt2.c"
 #include "../dtables/idt.c"
 #include <stdint.h>
 // extern void reloadSegments();
@@ -24,6 +24,9 @@ void kernel_main(void) {
   // uint16_t lol = 10 / erry;
   // asm("div %0" ::"r"(0)); //  terminal_writestring("hello");
   uint32_t zero = 0;
-
+  asm("int $0" : : "m"(zero));
+  while (true) {
+    asm("hlt");
+  }
   // asm volatile("int $0" : : "m"(zero));
 }
