@@ -1,14 +1,22 @@
 %macro isr_err_stub 1
 isr_stub_%+%1:
-    push %1
+  add esp, 4
+   pusha 
+     push %1
     call interrupt_handler
+    add esp, 4 ;essesntially popping the stack. DO NOT FORGET AGAIN OR WILL CRASH
+    popa
     iret 
 %endmacro
+; if writing for 64-bit, use iretq instead
 %macro isr_no_err_stub 1
 isr_stub_%+%1:
+    pushad
     push %1
     call interrupt_handler
-    iret
+    add esp, 4 ;essesntially popping the stack. DO NOT FORGET AGAIN OR WILL CRASH
+    popad
+    iret 
 %endmacro
 extern interrupt_handler
 isr_no_err_stub 0
@@ -48,6 +56,6 @@ global isr_stub_table
 isr_stub_table:
 %assign i 0 
 %rep    32 
-    dd isr_stub_%+i
+    dd isr_stub_%+i ; use DQ instead if targeting 64-bit
 %assign i i+1 
 %endrep

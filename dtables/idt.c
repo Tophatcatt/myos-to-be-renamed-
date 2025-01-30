@@ -21,19 +21,17 @@ idt_entry_t idt[32];
 ///
 ///
 //__attribute__((noreturn)) void interrupt_handler(void); //might need idk
-uint32_t getecx() {
-  uint32_t val;
-  asm volatile("movl %%ecx, %0" : "=r"(val));
-  return val;
-}
-void interrupt_handler(uint32_t vecnum) {
+
+void interrupt_handler(uint32_t vecnum, uint32_t err) {
   // terminal_errorstring("interrupt triggered\n");
   // terminal_errorstring("exception vector tripped\n");
   // uint32_t vecnum = getecx();
   switch (vecnum) {
   case 0:
-    terminal_writeint(vecnum);
     terminal_errorstring("divided by zero error\n");
+    break;
+  case 8:
+    terminal_errorstring("double fault error double boy\n");
     break;
   case 13:
     terminal_errorstring("general protection fault.\n");
@@ -42,8 +40,9 @@ void interrupt_handler(uint32_t vecnum) {
     terminal_errorstring("page fault.\n");
     break;
   default:
-    terminal_errorstring("unexpected interrupt.\n");
-    terminal_writeint(vecnum);
+    terminal_errorstring("unexpected interrupt with number: ");
+    terminal_errorint(vecnum);
+    newline();
     break;
   }
   return;
@@ -68,7 +67,7 @@ void idt_set_descriptor(uint8_t vector, void *handler, uint8_t flags) {
   // your code selector may be different!
   entry->selector = 0x08;
   // trap gate + present + DPL
-  entry->flags = 0x8e; // 0b1110 | ((dpl & 0b11) << 5) | (1 << 7);
+  entry->flags = flags; // 0b1110 | ((dpl & 0b11) << 5) | (1 << 7);
   // ist disabled
 }
 static uint16_t IDT_MAX_DESCRIPTORS = 32;
@@ -85,7 +84,7 @@ void idt_init() {
   for (uint8_t vector = 0; vector < 32; vector++) {
     // void *handler = vector_0_handler + (vector * 16);
     void *handler = isr_stub_table[vector];
-    idt_set_descriptor(vector, handler, 0x8);
+    idt_set_descriptor(vector, handler, 0x8e);
     vectors[vector] = true;
   }
 

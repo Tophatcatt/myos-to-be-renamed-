@@ -1,60 +1,60 @@
 #include <stdint.h>
-struct __attribute__((__packed__)) GDTseg {
-  uint16_t base;
-  uint32_t limit;
-  uint8_t access_byte;
-  uint8_t flags;
+
+// Define the GDT structure
+struct gdt_entry {
+  uint16_t limit_low;
+  uint16_t base_low;
+  uint8_t base_middle;
+  uint8_t access;
+  uint8_t granularity; // this is both the flags and limit_high part of the gdt
+                       // table
+  uint8_t base_high;
 };
-struct __attribute__((__packed__)) GDTbounds {
+// this is the same as in the global descriptor table page on osdev website
+// just for the love of god, read the thing from 0 to 63 and not the opposite
+
+struct gdt_ptr {
   uint16_t limit;
   uint32_t base;
-};
-static struct GDTseg segments[5];
-static struct GDTbounds bounds;
-uint8_t getflags(struct GDTseg src) { return src.flags & 15; }
-void encodeGdtEntry(uint8_t *target, struct GDTseg source) {
-  // Check the limit to make sure that it can be encoded
-  if (source.limit > 0xFFFFF) {
-    // kerror("GDT cannot encode limits larger than 0xFFFFF");
-    return;
-  }
+} __attribute__((packed));
 
-  // Encode the limit
-  target[0] = source.limit & 0xFF;
-  target[1] = (source.limit >> 8) & 0xFF;
-  target[6] = (source.limit >> 16) & 0x0F;
+// Define the GDT entries
+struct gdt_entry gdt_entries[4];
+struct gdt_ptr gdt_ptr;
 
-  // Encode the base
-  target[2] = source.base & 0xFF;
-  target[3] = (source.base >> 8) & 0xFF;
-  target[4] = (source.base >> 16) & 0xFF;
-  target[7] = (source.base >> 24) & 0xFF;
+void set_gdt_entry(struct gdt_entry *entry, uint32_t base, uint32_t limit,
+                   uint8_t access, uint8_t granularity) {
+  entry->base_low = (base & 0xFFFF);
+  entry->base_middle = (base >> 16) & 0xFF;
+  entry->base_high = (base >> 24) & 0xFF;
 
-  // Encode the access byte
-  target[5] = source.access_byte;
+  entry->limit_low = (limit & 0xFFFF);
+  entry->granularity = ((limit >> 16) & 0x0F) | (granularity & 0xF0);
 
-  // Encode the flags
-  target[6] |= (source.flags << 4);
+  entry->access = access;
 }
-void setGDT(uint8_t idx, uint32_t lim, uint32_t bas, uint8_t flag,
-            uint8_t access) {
-  segments[idx].limit = lim;
-  segments[idx].base = bas;
-  segments[idx].flags = flag;
-  segments[idx].access_byte = access;
-}
-void installGDT() {
-  setGDT(0, 0x0, 0x0, 0x0, 0x0);
-  setGDT(1, 0xfffff, 0x0, 0xc, 0x9A);
-  setGDT(2, 0xfffff, 0x0, 0xc, 0x92);
-  setGDT(3, 0xfffff, 0x0, 0xc, 0xfa);
-  setGDT(4, 0xfffff, 0x0, 0xc, 0xf2);
-  // setGDT(5, sizeof(struct GDTseg) - 1, (uint32_t) & (segments[5]), 0x0,
-  // 0x89);
-  bounds.base = (uint32_t)segments + 0xC0000000;
-  bounds.limit = (sizeof(struct GDTseg) * 5) - 1;
-  asm("lgdtl (%0)" : : "m"(bounds));
-  return;
+
+void init_gdt() {
+  // Null descriptor
+  set_gdt_entry(&gdt_entries[0], 0, 0, 0, 0);
+
+  // Code segment descriptor
+  set_gdt_entry(&gdt_entries[1], 0, 0xFFFFFFFF, 0x9A, 0xCF);
+
+  // Data segment descriptor
+  set_gdt_entry(&gdt_entries[2], 0, 0xFFFFFFFF, 0x92, 0xCF);
+  set_gdt_entry(&gdt_entries[3], (uint32_t)(&gdt_entries[3]),
+                sizeof(struct gdt_entry) - 1, 0x98, 0x00);
+
+  // these two segments are kernel code segments, not user.
+  // Set up the GDT pointer
+  gdt_ptr.limit = sizeof(struct gdt_entry) * 3 - 1;
+  gdt_ptr.base = (uint32_t)&gdt_entries;
+
+  // Load the GDT
+  asm volatile("lgdt (%0)" ::"r"(&gdt_ptr));
+
+  // Load the segment registers
 }
 void flush_gdt() {
   asm volatile("mov $0x10, %ax \n\t"
@@ -62,11 +62,5 @@ void flush_gdt() {
                "mov %ax, %es \n\t"
                "mov %ax, %fs \n\t"
                "mov %ax, %gs \n\t"
-               "mov %ax, %ss \n\t"
-               "ljmp $0x08, $1f\n"
-               "1:\n\t"
-               "pop %edi \n\t"
-               "push $0x8 \n\t"
-               "push %edi \n\t"
-               "ret");
+               "mov %ax, %ss \n\t");
 }

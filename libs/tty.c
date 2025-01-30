@@ -91,6 +91,9 @@ void terminal_putchar(char c) {
   if (c == 10) {
     terminal_row += 1;
     terminal_column = -1;
+    if (terminal_row == VGA_HEIGHT)
+      terminal_row = 0;
+
   } else {
     terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
   }
@@ -107,15 +110,13 @@ void terminal_write(const char *data, size_t size) {
     terminal_putchar(data[i]);
 }
 
-void newline() { terminal_putchar(10); }
+inline void newline() { terminal_putchar(10); }
 void terminal_writestring(const char *data) {
   terminal_write(data, strlen(data));
-  newline();
 }
 void terminal_writeint(uint32_t num) {
   if (num == 0) {
     terminal_putchar(0x30);
-    newline();
     return;
   }
   uint32_t len = 0;
@@ -126,25 +127,34 @@ void terminal_writeint(uint32_t num) {
   }
   char numstr[len];
   len -= 1;
-  while (num > 0) {
+  while (len > 0) {
     numstr[len] = (num % 10) + 0x30;
     num /= 10;
     len -= 1;
   }
+  numstr[len] = (num % 10) + 0x30;
   terminal_writestring(numstr);
 }
-void terminal_specialstring(const char *msg, enum vga_color_combos msgtype) {
+inline void terminal_specialstring(const char *msg,
+                                   enum vga_color_combos msgtype) {
   terminal_setcolor(msgtype);
   terminal_writestring(msg);
   terminal_setcolor(VGA_NORMAL);
 }
-void terminal_errorstring(const char *msg) {
+inline void terminal_errorstring(const char *msg) {
   terminal_specialstring(msg, VGA_ERROR);
 }
 void terminal_successstring(const char *msg) {
   terminal_specialstring(msg, VGA_SUCCESS);
 }
-
+inline void terminal_specialint(uint32_t num, enum vga_color_combos msgtype) {
+  terminal_setcolor(msgtype);
+  terminal_writeint(num);
+  terminal_setcolor(VGA_NORMAL);
+}
+inline void terminal_errorint(uint32_t num) {
+  terminal_specialint(num, VGA_ERROR);
+}
 void terminal_uproot() { // scroll the terminal buffer upwards. deletes what is
                          // scrolled over
   for (size_t y = 1; y < VGA_HEIGHT; y++) {
